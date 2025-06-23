@@ -1,23 +1,33 @@
 <template>
-  <div class="user-form">
-    <h2>{{ title }}</h2>
+  <v-card class="mx-auto" max-width="400">
+    <v-card-title>{{ title }}</v-card-title>
+    <v-card-text>
+      <form ref="formRef" @submit.prevent="handleSubmit">
+        <v-text-field v-model="form.name" label="Name" required />
+        <v-text-field v-model="form.username" label="Username" required />
+        <v-text-field v-model="form.email" label="Email" type="email" required />
+        <v-text-field v-model="form.phone" label="Phone" required />
 
-    <form @submit.prevent="handleSubmit" class="form">
-      <input v-model="form.name" type="text" placeholder="Name" />
-      <input v-model="form.username" type="text" placeholder="Username" />
-      <input v-model="form.email" type="email" placeholder="Email" />
-      <input v-model="form.phone" type="text" placeholder="Phone" />
+        <v-card-actions class="justify-end">
+          <v-btn type="submit" color="primary">
+            {{ buttonText }}
+          </v-btn>
+        </v-card-actions>
 
-      <button type="submit">{{ buttonText }}</button>
-    </form>
-
-    <p v-if="error" class="error">{{ error }}</p>
-    <p v-if="success" class="success">Usuario {{ isEdit ? 'actualizado' : 'creado' }} ✅</p>
-  </div>
+        <v-alert v-if="error" type="error" variant="outlined" class="mt-4" dense>
+          {{ error }}
+        </v-alert>
+        <v-alert v-if="success" type="success" variant="outlined" class="mt-4" dense>
+          Usuario {{ isEdit ? 'actualizado' : 'creado' }} ✅
+        </v-alert>
+      </form>
+    </v-card-text>
+  </v-card>
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue'
+import { ref, reactive, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import type { User } from '../types/user.interface'
 
 const props = withDefaults(
@@ -27,15 +37,14 @@ const props = withDefaults(
     title?: string
     buttonText?: string
   }>(),
-  {
-    title: 'Create User',
-    buttonText: 'Save'
-  }
+  { title: 'Crear nuevo usuario', buttonText: 'Crear' }
 )
-
 const emit = defineEmits<{
   (e: 'submit', user: Omit<User, 'id'>): void
 }>()
+const router = useRouter()
+
+const formRef = ref<HTMLFormElement | null>(null)
 
 const form = reactive<Omit<User, 'id'>>({
   name: '',
@@ -43,99 +52,35 @@ const form = reactive<Omit<User, 'id'>>({
   email: '',
   phone: ''
 })
-
 const success = ref(false)
 const error = ref('')
 
 watch(
   () => props.modelValue,
-  (val) => {
-    if (val) {
-      form.name = val.name
-      form.username = val.username
-      form.email = val.email
-      form.phone = val.phone
-    }
+  val => {
+    if (val) Object.assign(form, val)
   },
   { immediate: true }
 )
 
-const validateEmail = (email: string): boolean =>
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-
-const handleSubmit = () => {
+function handleSubmit() {
   error.value = ''
   success.value = false
 
-  const { name, username, email, phone } = form
-
-  if (!name || !username || !email || !phone) {
-    error.value = 'Todos los campos son obligatorios.'
-    return
-  }
-
-  if (!validateEmail(email)) {
-    error.value = 'El correo no es válido.'
+  if (!formRef.value?.checkValidity()) {
+    formRef.value?.reportValidity()
     return
   }
 
   emit('submit', {
-    name: name.trim(),
-    username: username.trim(),
-    email: email.trim(),
-    phone: phone.trim()
+    name: form.name.trim(),
+    username: form.username.trim(),
+    email: form.email.trim(),
+    phone: form.phone.trim()
   })
 
+  router.push('/')
   success.value = true
   setTimeout(() => (success.value = false), 2000)
 }
 </script>
-
-<style scoped>
-.user-form {
-  font-family: Arial, sans-serif;
-  max-width: 400px;
-  margin: 0 auto;
-}
-
-h2 {
-  color: #333;
-}
-
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-input {
-  padding: 8px;
-  font-size: 14px;
-}
-
-button {
-  padding: 10px;
-  background-color: #42b883;
-  color: white;
-  border: none;
-  cursor: pointer;
-  font-weight: bold;
-}
-
-button:hover {
-  background-color: #36966c;
-}
-
-.success {
-  color: green;
-  font-size: 14px;
-  margin-top: 8px;
-}
-
-.error {
-  color: red;
-  font-size: 14px;
-  margin-top: 8px;
-}
-</style>
